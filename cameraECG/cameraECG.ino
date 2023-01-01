@@ -93,13 +93,13 @@ void configCam()
     Serial.println("OV5640_Auto_Focus Successful!");
   }
 
-
   digitalWrite(12, LOW);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// image uploading and patient details
 int id = 0;
 String serverName = "sensorlifeline.com";
+String apiKeyValue = "tPmAT5Ab3j7F9";
 String serverPath = "/uploads.php";
 const char* getServerName = "http://sensorlifeline.com/get-esp.php";
 String getPatientDetails = "";
@@ -193,6 +193,8 @@ String sendPhoto(camera_fb_t * fb) {
     getBody = "Connection to " + serverName +  " failed.";
     Serial.println(getBody);
   }
+
+  sendStreamLink(5, "");
   return getBody;
 
 }
@@ -302,20 +304,20 @@ RTC_DATA_ATTR boolean startFlag = false;
 const char *ssid = "realme 3 Pro";   // your network SSID
 const char *password = "1234567890"; // your network password
 
-IPAddress local_IP(192, 168, 207, 203); //194.147
-// Set your Gateway IP address
-IPAddress gateway(192, 168, 207, 21); //192.168.207.21
-
-IPAddress subnet(255, 255, 255, 0);
-IPAddress primaryDNS(8, 8, 8, 8);   //optional
-IPAddress secondaryDNS(8, 8, 4, 4); //optional
+//IPAddress local_IP(192, 168, 164, 203); //194.147
+//// Set your Gateway IP address
+//IPAddress gateway(192, 168, 164, 138); //192.168.207.21
+//
+//IPAddress subnet(255, 255, 255, 0);
+//IPAddress primaryDNS(8, 8, 8, 8);   //optional
+//IPAddress secondaryDNS(8, 8, 4, 4); //optional
 
 void connectWiFi()
 {
   
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
-    Serial.println("STA Failed to configure");
-  }
+//  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+//    Serial.println("STA Failed to configure");
+//  }
   
   Serial.println("Connecting");
   WiFi.mode(WIFI_STA);
@@ -363,6 +365,64 @@ void connectWiFi()
   //  server.on("/jpg", HTTP_GET, handle_jpg);
   server.onNotFound(handleNotFound);
   server.begin();
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////// send ip address to db
+
+void sendStreamLink(int type, String streamLink)
+{
+  String apiKeyValue = "tPmAT5Ab3j7F9";
+
+//  IPAddress link = WiFi.localIP();
+//  String streamLink = "http://" + String(link[0]) + String(".") +\
+//  String(link[1]) + String(".") +\
+//  String(link[2]) + String(".") +\
+//  String(link[3]) +"/mjpeg/1";
+  
+//  Serial.println(streamLink);
+//  Serial.println(streamLink.length());
+
+//  int type = 4; //4
+  
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    WiFiClient client;
+    HTTPClient http;
+
+    http.begin(client, "http://sensorlifeline.com/post-esp.php");
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    String httpRequestData = "api_key=" + apiKeyValue + "&id=" + id + "&type=" + type + "&value1=" + streamLink + "";
+//    Serial.print("httpRequestData: ");
+//    Serial.println(httpRequestData);
+
+    int httpResponseCode;
+    httpResponseCode = http.POST(httpRequestData);
+
+    if (httpResponseCode > 0)
+    {
+//      Serial.print("HTTP Response code: ");
+//      Serial.println(httpResponseCode);
+    }
+    else
+    {
+      for (int i = 2; i > 0; i++)
+      {
+        httpResponseCode = http.POST(httpRequestData);
+        if (httpResponseCode == 200)
+          break;
+        Serial.print("Error code: ");
+        Serial.println(httpResponseCode);
+      }
+      Serial.println("error while uploading");
+    }
+
+    http.end();
+  }
+  else
+  {
+    //Serial.println("WiFi Disconnected");
+    connectWiFi();
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// streaming
@@ -522,6 +582,16 @@ void setup()
   sensor_t * s = esp_camera_sensor_get();
   s->set_hmirror(s, 1);
   getPatientDetail();
+  delay(100);
+
+  /////////////////////////////////////////////////
+  IPAddress link = WiFi.localIP();
+  String streamLink = "http://" + String(link[0]) + String(".") +\
+  String(link[1]) + String(".") +\
+  String(link[2]) + String(".") +\
+  String(link[3]) +"/mjpeg/1";
+  sendStreamLink(4, streamLink);
+  ////////////////////////////////////////////////
   //  delay(100);
   //  Serial.println("Cam Configured");
   //  connectWiFi();
