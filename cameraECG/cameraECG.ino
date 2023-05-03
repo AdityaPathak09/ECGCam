@@ -29,7 +29,7 @@
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
 
-#define camTrig 13
+#define camTrig 13 //Button
 
 OV5640 ov5640 = OV5640();
 
@@ -543,25 +543,31 @@ String urlencode(String str)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// setup
 
-void setup()
+void setup()                                                         //function runs only once
 {
-  Serial.begin(115200);
-  pinMode(12, OUTPUT);
+  Serial.begin(115200);                                              //begins serial communication at baud rate 115200
+  
+  pinMode(12, OUTPUT);                                               //led Indicator
+  
   digitalWrite(12, HIGH);
   delay(100);
   digitalWrite(12, LOW);
-  pinMode(4, OUTPUT);
+  
+  pinMode(4, OUTPUT);                                                //flash
 
-  pinMode(camTrig, INPUT_PULLUP);
+  pinMode(camTrig, INPUT_PULLUP);                                    //camera
 
   //  ledcSetup(flash, flashFreq, flashRes);
   //  ledcAttachPin(4, flash);
   digitalWrite(4, LOW);
-  gpio_hold_dis(GPIO_NUM_4);
-  gpio_deep_sleep_hold_dis();
-  pinMode(13, INPUT_PULLUP);
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 0);
-  if (startFlag == false)
+  
+  gpio_hold_dis(GPIO_NUM_4);                                         // removes gpio hold from pin 4 sets it to default value
+  gpio_deep_sleep_hold_dis();                // removes gpio hold from all pins at deep sleep sets them to default value at wakeup
+  
+//  pinMode(13, INPUT_PULLUP);
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 0);                      //Sets pin 13 as external wakeup
+  
+  if (startFlag == false)         //this part of code runs only once to prevent unnecessary image capturing at time of cold reboot
   {
     digitalWrite(4, LOW);
     digitalWrite(12, LOW);
@@ -575,22 +581,24 @@ void setup()
     puttosleep();
   }
 
-  Serial.println("cam config time: " + String((long)(millis() - tim) / 1000));
+//  Serial.println("cam config time: " + String((long)(millis() - tim) / 1000));
 
-  connectWiFi();
-  configCam();
-  sensor_t * s = esp_camera_sensor_get();
-  s->set_hmirror(s, 1);
-  getPatientDetail();
+  connectWiFi();                                                       //connects to wifi
+  configCam();                                                         //configures camera
+  
+  sensor_t * s = esp_camera_sensor_get(); 
+  s->set_hmirror(s, 1);                                                //flips image sensor horozontally
+  
+  getPatientDetail();                                                  //gets patient ID, Name and location from server
   delay(100);
 
   /////////////////////////////////////////////////
-  IPAddress link = WiFi.localIP();
-  String streamLink = "http://" + String(link[0]) + String(".") +\
+  IPAddress link = WiFi.localIP();  
+  String streamLink = "http://" + String(link[0]) + String(".") +\     //creats link for image streaming
   String(link[1]) + String(".") +\
   String(link[2]) + String(".") +\
   String(link[3]) +"/mjpeg/1";
-  sendStreamLink(4, streamLink);
+  sendStreamLink(4, streamLink);                     //sends generated link on server for streaming (Mobile phone needs the link)
   ////////////////////////////////////////////////
   //  delay(100);
   //  Serial.println("Cam Configured");
